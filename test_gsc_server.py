@@ -230,6 +230,29 @@ def _make_service():
 # TestListProperties
 # ---------------------------------------------------------------------------
 
+class TestAdcAuth(unittest.TestCase):
+
+    def test_adc_is_used_when_enabled(self):
+        mod = _load_module()
+        sentinel = object()
+        with patch.object(mod, "USE_ADC", True), \
+             patch("google.auth.default", return_value=(sentinel, "proj")) as default, \
+             patch.object(mod, "build", return_value="service") as build:
+            self.assertEqual(mod.get_gsc_service(), "service")
+        default.assert_called_once()
+        self.assertEqual(default.call_args.kwargs["scopes"], mod.SCOPES)
+        self.assertIs(build.call_args.kwargs["credentials"], sentinel)
+
+    def test_adc_failure_does_not_fall_back_to_oauth(self):
+        mod = _load_module()
+        with patch.object(mod, "USE_ADC", True), \
+             patch("google.auth.default", side_effect=RuntimeError("no ADC")), \
+             patch.object(mod, "get_gsc_service_oauth") as oauth:
+            with self.assertRaises(RuntimeError):
+                mod.get_gsc_service()
+        oauth.assert_not_called()
+
+
 class TestListProperties(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_json_with_properties_list(self):

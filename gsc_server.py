@@ -86,6 +86,10 @@ if os.path.exists(_OLD_TOKEN) and not os.path.exists(TOKEN_FILE):
 
 # Environment variable to skip OAuth authentication
 SKIP_OAUTH = os.environ.get("GSC_SKIP_OAUTH", "").lower() in ("true", "1", "yes")
+# Application Default Credentials: use the login gcloud already holds instead of
+# a client_secrets.json and a token file of our own. Opt-in, because it changes
+# which identity the server runs as.
+USE_ADC = os.environ.get("GSC_USE_ADC", "").lower() in ("true", "1", "yes")
 
 # Safety flag for destructive operations (add_site, delete_site, delete_sitemap).
 # Default is false — set GSC_ALLOW_DESTRUCTIVE=true to enable these tools.
@@ -133,6 +137,12 @@ def get_gsc_service():
             f"client_secrets.json file."
         )
 
+    # Application Default Credentials win when explicitly asked for. No silent
+    # fallback: if ADC was requested and does not work, running as some other
+    # identity instead would be worse than failing loudly.
+    if USE_ADC:
+        return get_gsc_service_adc()
+
     # Try OAuth authentication first if not skipped
     if not SKIP_OAUTH:
         try:
@@ -171,6 +181,24 @@ def get_gsc_service():
         f"that you cannot access — you MUST use the environment variables with "
         f"absolute paths."
     )
+
+def get_gsc_service_adc():
+    """
+    Returns an authorized Search Console service object using Application
+    Default Credentials.
+
+    No client_secrets.json and no token file of our own: the credentials are
+    whatever gcloud already holds. Set up once with
+
+        gcloud auth application-default login \
+            --scopes=https://www.googleapis.com/auth/webmasters
+
+    The scope matters — ADC obtained without it authenticates fine and then
+    fails on every Search Console call.
+    """
+    credentials, _ = google.auth.default(scopes=SCOPES)
+    return build("searchconsole", "v1", credentials=credentials, cache_discovery=False)
+
 
 def get_gsc_service_oauth():
     """

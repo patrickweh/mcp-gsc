@@ -504,3 +504,14 @@ MIT License. See the [LICENSE](LICENSE) file for details.
 ### [0.1.0] — Initial release
 - 19 tools covering property management, search analytics, URL inspection, and sitemap management
 - OAuth and service account authentication
+
+### Application Default Credentials
+
+Set `GSC_USE_ADC=true` to authenticate with the login `gcloud` already holds, instead of a `client_secrets.json` and a token file. Useful when you do not want a dedicated OAuth client, or when several tools should share one identity.
+
+```bash
+gcloud auth application-default login \
+    --scopes=https://www.googleapis.com/auth/webmasters
+```
+
+The scope is not optional: ADC obtained without it authenticates fine and then fails on every Search Console call. When `GSC_USE_ADC` is set there is no fallback to the OAuth or service-account paths — running as a different identity than the one asked for would hide the problem rather than surface it.
