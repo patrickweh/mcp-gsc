@@ -6,7 +6,7 @@ import sys
 import shutil
 from datetime import datetime, timedelta
 
-# Fail loudly on unsupported Python. The mcp/FastMCP dependency requires 3.11+.
+# Fail loudly on unsupported Python. The mcp dependency requires 3.11+.
 # On Python 3.10 or older the server dies during import, and when it is launched
 # by a GUI client (e.g. Claude Desktop) that failure is silent — no tools appear
 # and no log file is written, which is impossible to diagnose. See issue #19.
@@ -35,9 +35,10 @@ from googleapiclient.errors import HttpError
 logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
 
 # MCP
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 
-mcp = FastMCP("gsc-server")
+mcp = MCPServer("gsc-server")
 
 def _expand_path(path: Optional[str]) -> Optional[str]:
     """Expand ``~`` and environment variables in a path, returning None for empty input.
@@ -1726,18 +1727,17 @@ def main():
     if transport == "stdio":
         mcp.run(transport="stdio")
     elif transport in {"sse", "http"}:
-        # mcp SDK >= 1.27 removed the host/port kwargs from run() (they must be
-        # set on mcp.settings instead) and enabled DNS-rebinding protection with
-        # a Host allowlist of localhost only — which 421s the remote/Docker
-        # binding the operator explicitly opted into via MCP_HOST. Disable that
-        # check for the documented remote path. See issues #30 and #33.
-        mcp.settings.host = host
-        mcp.settings.port = port
-        try:
-            mcp.settings.transport_security.enable_dns_rebinding_protection = False
-        except Exception:
-            pass
-        mcp.run(transport="sse")
+        # DNS-rebinding protection only allows a localhost Host header, which
+        # 421s the remote/Docker binding the operator opted into via MCP_HOST.
+        # Disable that check for the documented remote path. See issues #30 and #33.
+        mcp.run(
+            transport="sse",
+            host=host,
+            port=port,
+            transport_security=TransportSecuritySettings(
+                enable_dns_rebinding_protection=False
+            ),
+        )
     else:
         raise ValueError(
             f"Unknown MCP_TRANSPORT '{transport}'. "
