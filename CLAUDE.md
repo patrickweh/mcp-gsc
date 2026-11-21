@@ -5,7 +5,7 @@ Context for AI coding assistants (Claude, Cursor, Copilot, etc.) working in this
 ## What this is
 
 MCP server that connects Google Search Console to AI assistants.
-Single file: `gsc_server.py` (~1,670 lines). Built with FastMCP — no custom framework.
+Single file: `gsc_server.py` (~1,670 lines). Built with the mcp SDK MCPServer (formerly FastMCP), no custom framework.
 
 ## Running locally
 
